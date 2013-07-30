@@ -1,9 +1,9 @@
 HOST = "irc.freenode.net"
-PORT = 6667
-NICK = "titlebot002"
-IDENT = "titlebot002"
-REALNAME = "titlebot002"
-CHANNELS = ["#kde-cn", "##Orz", "#botwar"]
+PORT = 7000
+NICK = "ttlbot"
+IDENT = "ttlbot"
+REALNAME = "Biergaizi's titlebot"
+CHANNELS = ["#wecase", "#kneecircle", "#botwar"]
 ADMINS = ["biergaizi", "StarBrilliant"]  # empty list means disable permission checking
 
 HEADERS = [("Accept-Charset", "utf-8, iso-8859-1"),

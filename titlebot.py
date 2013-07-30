@@ -1,194 +1,136 @@
-#!/usr/bin/env python2
-# coding: utf-8
-
-import os
 import sys
-import re
-
 import socket
-socket.setdefaulttimeout(10)
+socket.setdefaulttimeout(4)
+import urllib.error
 
-import time
-import cookielib
-import urllib2
-from HTMLParser import HTMLParser as html_parser
-import zlib
-
+import web
+from hack import async, restart_program, Signal
 import libirc
-from config import HOST, PORT, NICK, IDENT, REALNAME, CHANNELS, ADMINS, HEADERS
+from time import sleep
+from config import (HOST, PORT, NICK, IDENT,
+                    REALNAME, CHANNELS, ADMINS, HEADERS)
 
 
-def pickupUrl(text):
-    """Return a vaild URL from a string"""
+class IRCHandler(object):
 
-    PROTOCOLS = ["http:", "https:"]
-    for protocol in PROTOCOLS:
-        index = text.find(protocol)
-        if index != -1:
-            return text[index:]
-    return None
+    message_recived = Signal()
+    error_raised = Signal()
 
+    def __init__(self, irc_connection):
+        self.__connection = irc_connection
+        self.__running = True
+        self.__message_pool = []
 
-def restartProgram():
-    time.sleep(10)
-    sys.stderr.write("Restarting...\n")
-    python = sys.executable
-    os.execl(python, python, * sys.argv)
-
-
-def getWebResourceInfo(word):
-    webInfo = {
-        "type": "",
-        "title": None,
-        "size": ""
-    }
-
-    def openConnection(word):
-        cookieJar = cookielib.CookieJar()
-        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookieJar))
-        opener.addheaders = HEADERS
-        h = opener.open(word.encode("utf-8", "replace"))
-
-        if h.code not in [200, 206]:
-            raise urllib2.HTTPError(code=h.code)
-        return h
-
-    def htmlDecode(encodedText):
-        decodedText = ""
-        for encoding in ("utf-8", "gbk", "gb18030", "iso-8859-1"):
-            try:
-                decodedText = encodedText.decode(encoding)
-                break
-            except UnicodeDecodeError:
-                pass
-        if not decodedText:
-            decodedText = decodedText.decode("utf-8", "replace")
-
-        decodedText = html_parser().unescape(decodedText).replace("\r", "").replace("\n", " ").strip()
-        return decodedText
-
-    def readContents(h):
-        """Read a little part of the contents"""
-        contents = ""
-        counter = 1
-        MAX = 5
-        while len(contents) < 16384 and counter < MAX:
-            following_contents = h.read(16384)
-            if following_contents:
-                contents += following_contents
-            else:
-                break
-            counter += 1
-        return contents
-
-    def decompressContents(contents):
-        """Decompress gzipped contents, ignore the error"""
-        try:
-            gunzip = zlib.decompressobj(16 + zlib.MAX_WBITS)
-            contents = gunzip.decompress(contents)
-        except:
-            pass
-        return contents
-
-    h = openConnection(word)
-
-    if h.info()["Content-Type"].split(";")[0] == "text/html" or (not "Content-Type" in h.info()):
-        webInfo["type"] = "text/html"
-        contents = readContents(h)
-
-        if h.info().get("Content-Encoding") == "gzip":  # Fix buggy www.bilibili.tv
-            contents = decompressContents(contents)
-
-        if contents.find("<title>") != -1:
-            encodedTitle = contents.split("<title>")[1].split("</title>")[0]
-            webInfo['title'] = htmlDecode(encodedTitle)
-        else:
-            webInfo['title'] = ""
-    else:
-        webInfo["type"] = h.info()["Content-Type"]
-        if "Content-Range" in h.info():
-            webInfo["size"] = h.info()["Content-Range"].split("/")[1]
-        elif "Content-Length" in h.info():
-            webInfo["size"] = h.info()["Content-Length"]
-
-    return webInfo
-
-
-if __name__ == "__main__":
-    try:
-        irc = libirc.IRCConnection()
-        irc.connect((HOST, PORT))
-        irc.setnick(NICK)
-        irc.setuser(IDENT, REALNAME)
-        for channel in CHANNELS:
-            irc.join(channel)
-    except:
-        restartProgram()
-
-    channel = CHANNELS[0]
-
-    running = True
-    while running:
-        if not irc.sock:
-            running = False
-            restartProgram()
-        try:
-            text = irc.recvline(block=True)
-            if not text:
-                continue
-
-            sys.stderr.write("%s\n" % text.encode('utf-8', 'replace'))
+    def __mainloop(self):
+        while self.__running:
+            text = self.__connection.recvline(block=True)
             message = irc.parse(line=text)
-            if not message or message["cmd"] != "PRIVMSG":
-                continue
+            if message and message['msg'] and message['cmd'] == "PRIVMSG":
+                self.__last_message = message
+                self.message_recived.emit(message)
 
-            if message["dest"] == NICK:
-                if message["nick"] in ADMINS or not ADMINS:
-                    if message["msg"] == u"Get out of this channel!":  # A small hack
-                        irc.quit(u"%s asked to leave." % message["nick"])
-                        running = False
-                        break
-                    elif message["msg"] == u"Restart!":
-                        irc.quit(u"%s asked to restart." % message["nick"])
-                        running = False
-                        restartProgram()
-                    else:
-                        irc.say(message["nick"], "Unknown Command, 233333...")
-                else:
-                    irc.say(message["nick"], "Permission Denied")
-
-            channel = message["dest"]
-            words = message["msg"].split()
-            for word in words:
-                word = pickupUrl(word)
-                if not word:
-                    continue
-
-                try:
-                    contentsInfo = getWebResourceInfo(word)
-                except urllib2.HTTPError as e:
-                    irc.say(channel, u"⇪HTTP %d 错误\r\n" % e.code)
-                    continue
-
-                if contentsInfo["type"] == "text/html" and contentsInfo["title"]:
-                    irc.say(channel, u"⇪标题: %s" % contentsInfo["title"])
-                elif contentsInfo["type"] == "text/html" and contentsInfo["title"] == None:
-                        irc.say(channel, u"⇪无标题网页")
-                elif contentsInfo["type"] == "text/html" and contentsInfo["title"].strip() == "":
-                    irc.say(channel, u"⇪标题: (空)")
-                elif contentsInfo["size"]:
-                    assert contentsInfo["type"]
-                    irc.say(channel, u"⇪文件类型: %s, 文件大小: %s 字节\r\n" % (contentsInfo["type"], contentsInfo["size"]))
-                elif contentsInfo["type"]:
-                    irc.say(channel, u"⇪文件类型: %s\r\n" % contentsInfo["type"])
-
-        except socket.error as e:
-            sys.stderr.write("Error: %s\n" % e)
-            irc.quit("Network error.")
-        except Exception as e:
+    def mainloop(self):
+        while self.__running:
             try:
-                irc.say(channel, u"哎呀，%s 好像出了点问题: %s" % (NICK, e))
-            except:
-                pass
+                self.__say()
+                self.__mainloop()
+            except socket.error as e:
+                self.quit("Network error")
+            except Exception as e:
+                self.complain(self.__last_messag['dest'], e)
 
-# vim: et ft=python sts=4 sw=4 ts=4
+    def say(self, nick, text):
+        self.__message_pool.append([nick, text])
+
+    def _say(self, nick, text):
+        self.__connection.say(nick, text)
+
+    @async
+    def __say(self):
+        while self.__running:
+            if not self.__message_pool:
+                continue
+            nick, text = self.__message_pool.pop()
+            self._say(nick, text)
+            sleep(0.5)
+
+    def complain(self, nick, text):
+        nick = str(nick)
+        text = str(text)
+        self.say(nick, "哎呀，%s 好像出了点问题: " % (NICK) + text)
+
+    def quit(self, reason="Exit"):
+        self.__running = False
+        self.__connection.quit(reason)
+
+
+class MessageHandler(object):
+
+    def __init__(self, irc_handler):
+        self.__handler = irc_handler
+        self.__handler.message_recived.connect(self.message_handler)
+
+    @async
+    def message_handler(self, msg):
+        if msg['dest'] == NICK:
+            self.react_command(msg)
+        else:
+            self.react_message(msg)
+
+    def react_command(self, msg):
+        if msg['nick'] in ADMINS or (not ADMINS):
+            if msg['msg'] == "Get out of this channel!":
+                self.__handler.quit("%s asked to leave" % msg['nick'])
+            elif msg['msg'] == "Restart!":
+                self.__handler.quit("%s asked to restart" % msg['nick'])
+                restart_program()
+            else:
+                irc.say(msg['nick'], "Unknown Command, 233333...")
+        else:
+            irc.say(msg['nick'], "Permission Denied")
+
+    def react_message(self, msg):
+        for word in msg['msg'].split():
+            self.say_title(msg['dest'], word)
+
+    @async
+    def say_title(self, channel, text):
+        url = web.pickup_url(text)
+        if url:
+            try:
+                web_info = web.web_res_info(url)
+                if web_info['type'] == "text/html":
+                    self.say_webpage_title(channel, web_info)
+                else:
+                    self.say_resource_info(channel, web_info)
+            except Exception as e:
+                self.__handler.complain(channel, e)
+
+    def say_webpage_title(self, channel, web_info):
+        if web_info['title']:
+            self.__handler.say(channel, "⇪标题: %s" % web_info['title'])
+        elif web_info['title'] is None:
+            self.__handler.say(channel, "⇪无标题网页")
+        elif not (web_info['title'].strip()):
+            self.__handler.say(channel, "⇪标题: (空)")
+
+    def say_resource_info(self, channel, web_info):
+        if web_info['size']:
+            assert web_info['type']
+            self.__handler.say(channel, "⇪文件类型: %s, 文件大小: %s 字节\r\n" % (web_info['type'], web_info['size']))
+        elif web_info['type']:
+            self.__handler.say(channel, "⇪文件类型: %s\r\n" % (web_info['type']))
+
+
+irc = libirc.IRCConnection()
+irc.connect((HOST, PORT), use_ssl=True)
+irc.setnick(NICK)
+irc.setuser(IDENT, REALNAME)
+
+for channel in CHANNELS:
+    irc.join(channel)
+
+irc_handler = IRCHandler(irc)
+message_handler = MessageHandler(irc_handler)
+
+irc_handler.mainloop()
