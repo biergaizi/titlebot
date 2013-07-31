@@ -2,6 +2,7 @@ import urllib.request, urllib.error, urllib.parse
 import http.cookiejar
 from html.parser import HTMLParser as html_parser
 import zlib
+import io
 from config import HEADERS
 
 
@@ -70,14 +71,33 @@ def web_res_info(word):
             counter += 1
         return contents
 
-    def decompressContents(contents):
+    def decompressContents(compressed_contents, block_size=128, max_length=1024000):
         """Decompress gzipped contents, ignore the error"""
-        try:
-            gunzip = zlib.decompressobj(16 + zlib.MAX_WBITS)
-            contents = gunzip.decompress(contents)
-        except Exception as e:
-            pass
-        return contents
+
+        decompress = zlib.decompressobj()
+        gzipped_stream = io.BytesIO(compressed_contents)
+
+        decompressed_contents = b""
+        #unzipped_stream = io.BytesIO(decompressed_contents)
+
+        decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
+
+        while len(decompressed_contents) < max_length:
+            block = gzipped_stream.read(block_size)
+            if not block:
+                break
+            seek = decompressor.unconsumed_tail + block
+            decompressed_block = decompressor.decompress(seek)
+            decompressed_contents += decompressed_block
+            #unzipped_stream.write(decompressed_block)
+        else:
+            decompressed_contents = b"<title>F__K, why were you bomb me?</title>"
+
+        gzipped_stream.close()
+        #unzipped_stream.close()
+
+        return decompressed_contents
+
 
     h = openConnection(word)
 

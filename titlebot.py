@@ -48,11 +48,11 @@ class IRCHandler(object):
     @async
     def __say(self):
         while self.__running:
+            sleep(1)
             if not self.__message_pool:
                 continue
             nick, text = self.__message_pool.pop()
             self._say(nick, text)
-            sleep(0.5)
 
     def complain(self, nick, text):
         nick = str(nick)
@@ -103,7 +103,7 @@ class MessageHandler(object):
                     self.say_webpage_title(channel, web_info)
                 else:
                     self.say_resource_info(channel, web_info)
-            except Exception as e:
+            except ValueError as e:
                 self.__handler.complain(channel, e)
 
     def say_webpage_title(self, channel, web_info):
