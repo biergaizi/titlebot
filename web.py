@@ -50,19 +50,20 @@ def web_res_info(word):
         decodedText = html_parser().unescape(decodedText).replace("\r", "").replace("\n", " ").strip()
         return decodedText
 
-    def readContents(h, timeout=5):
+    def readContents(h, timeout=3):
         """Read a little part of the contents"""
         contents = b""
         counter = 1
-        MAX = 5
+        MAX = 8192
         MAX_LENGTH = 16384
 
         start_time = time.time()
+
         while len(contents) < MAX_LENGTH and counter < MAX:
             if time.time() - start_time > timeout:
                 raise RuntimeError("Request timeout.")
 
-            following_contents = h.read(16384)
+            following_contents = h.read(16)
 
             # Hack: read more when we saw a script
             if b"<script" in following_contents:
