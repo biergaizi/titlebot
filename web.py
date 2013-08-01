@@ -87,7 +87,7 @@ def web_res_info(word):
             decompressed_block = decompressor.decompress(seek)
             decompressed_contents += decompressed_block
         else:
-            raise(RuntimeError, "Too large gzipped content.")
+            raise RuntimeError("Too large gzipped content.")
 
         gzipped_stream.close()
 
