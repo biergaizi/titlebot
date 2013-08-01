@@ -103,7 +103,7 @@ class MessageHandler(object):
                     self.say_webpage_title(channel, web_info)
                 else:
                     self.say_resource_info(channel, web_info)
-            except ValueError as e:
+            except Exception as e:
                 self.__handler.complain(channel, e)
 
     def say_webpage_title(self, channel, web_info):

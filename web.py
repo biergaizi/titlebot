@@ -74,12 +74,9 @@ def web_res_info(word):
     def decompressContents(compressed_contents, block_size=128, max_length=1024000):
         """Decompress gzipped contents, ignore the error"""
 
-        decompress = zlib.decompressobj()
         gzipped_stream = io.BytesIO(compressed_contents)
 
         decompressed_contents = b""
-        #unzipped_stream = io.BytesIO(decompressed_contents)
-
         decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
 
         while len(decompressed_contents) < max_length:
@@ -89,12 +86,10 @@ def web_res_info(word):
             seek = decompressor.unconsumed_tail + block
             decompressed_block = decompressor.decompress(seek)
             decompressed_contents += decompressed_block
-            #unzipped_stream.write(decompressed_block)
         else:
-            decompressed_contents = b"<title>F__K, why were you bomb me?</title>"
+            raise(RuntimeError, "Too large gzipped content.")
 
         gzipped_stream.close()
-        #unzipped_stream.close()
 
         return decompressed_contents
 
