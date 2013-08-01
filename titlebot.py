@@ -4,6 +4,7 @@ socket.setdefaulttimeout(4)
 import urllib.error
 
 import web
+from urllib.error import HTTPError
 from hack import async, restart_program, Signal
 import libirc
 from time import sleep
@@ -57,7 +58,18 @@ class IRCHandler(object):
     def complain(self, nick, text):
         nick = str(nick)
         text = str(text)
-        self.say(nick, "哎呀，%s 好像出了点问题: " % (NICK) + text)
+        try:
+            self.say(nick, "哎呀，%s 好像出了点问题: " % (NICK) + text)
+        except Exception:
+            pass
+
+    def complain_network(self, nick, text):
+        nick = str(nick)
+        text = str(text)
+        try:
+            self.say(nick, "哎呀，网络好像出了点问题: " + text)
+        except Exception:
+            pass
 
     def quit(self, reason="Exit"):
         self.__running = False
@@ -103,6 +115,8 @@ class MessageHandler(object):
                     self.say_webpage_title(channel, web_info)
                 else:
                     self.say_resource_info(channel, web_info)
+            except (RuntimeError, HTTPError) as e:
+                self.__handler.complain_network(channel, e)
             except Exception as e:
                 self.__handler.complain(channel, e)
 
