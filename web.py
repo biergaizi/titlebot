@@ -4,6 +4,7 @@ from html.parser import HTMLParser as html_parser
 import zlib
 import io
 from config import HEADERS
+import time
 
 
 def pickup_url(text):
@@ -49,14 +50,18 @@ def web_res_info(word):
         decodedText = html_parser().unescape(decodedText).replace("\r", "").replace("\n", " ").strip()
         return decodedText
 
-    def readContents(h):
+    def readContents(h, timeout=5):
         """Read a little part of the contents"""
         contents = b""
         counter = 1
         MAX = 5
         MAX_LENGTH = 16384
 
+        start_time = time.time()
         while len(contents) < MAX_LENGTH and counter < MAX:
+            if time.time() - start_time > timeout:
+                raise RuntimeError("Request timeout.")
+
             following_contents = h.read(16384)
 
             # Hack: read more when we saw a script
