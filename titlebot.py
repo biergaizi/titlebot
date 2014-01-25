@@ -1,6 +1,7 @@
 import socket
 socket.setdefaulttimeout(4)
 
+from queue import Queue
 import web
 from urllib.error import HTTPError
 from hack import async, restart_program, Signal
@@ -18,7 +19,7 @@ class IRCHandler(object):
     def __init__(self, irc_connection):
         self.__connection = irc_connection
         self.__running = True
-        self.__message_pool = []
+        self.__message_pool = Queue()
 
     def __mainloop(self):
         while self.__running:
@@ -39,7 +40,7 @@ class IRCHandler(object):
                 self.complain(self.__last_messag['dest'], e)
 
     def say(self, nick, text):
-        self.__message_pool.append([nick, text])
+        self.__message_pool.put([nick, text])
 
     def _say(self, nick, text):
         self.__connection.say(nick, text)
@@ -47,10 +48,8 @@ class IRCHandler(object):
     @async
     def __say(self):
         while self.__running:
-            sleep(1)
-            if not self.__message_pool:
-                continue
-            nick, text = self.__message_pool.pop()
+            sleep(0.5)
+            nick, text = self.__message_pool.get(block=True)
             self._say(nick, text)
 
     def complain(self, nick, text):
