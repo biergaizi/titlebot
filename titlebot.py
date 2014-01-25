@@ -110,7 +110,7 @@ class MessageHandler(object):
         url = web.pickup_url(text)
         if url:
             errors = 0
-            while errors < 3:
+            while True:
                 try:
                     web_info = web.web_res_info(url)
                     if web_info['type'] == "text/html":
@@ -119,8 +119,12 @@ class MessageHandler(object):
                         self.say_resource_info(channel, web_info)
                     break
                 except (RuntimeError, HTTPError) as e:
-                    self.__handler.complain_network(channel, e)
-                    errors += 1
+                    if errors < 3:
+                        errors += 1
+                        continue
+                    else:
+                        self.__handler.complain_network(channel, e)
+                        break
                 except Exception as e:
                     self.__handler.complain(channel, e)
                     break
