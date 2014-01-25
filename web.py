@@ -1,4 +1,6 @@
-import urllib.request, urllib.error, urllib.parse
+import urllib.request
+import urllib.error
+import urllib.parse
 import http.cookiejar
 from html.parser import HTMLParser as html_parser
 import zlib

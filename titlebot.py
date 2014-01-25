@@ -1,7 +1,5 @@
-import sys
 import socket
 socket.setdefaulttimeout(4)
-import urllib.error
 
 import web
 from urllib.error import HTTPError
@@ -9,7 +7,7 @@ from hack import async, restart_program, Signal
 import libirc
 from time import sleep
 from config import (HOST, PORT, NICK, IDENT,
-                    REALNAME, CHANNELS, ADMINS, HEADERS)
+                    REALNAME, CHANNELS, ADMINS)
 
 
 class IRCHandler(object):
