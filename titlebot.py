@@ -109,16 +109,21 @@ class MessageHandler(object):
     def say_title(self, channel, text):
         url = web.pickup_url(text)
         if url:
-            try:
-                web_info = web.web_res_info(url)
-                if web_info['type'] == "text/html":
-                    self.say_webpage_title(channel, web_info)
-                else:
-                    self.say_resource_info(channel, web_info)
-            except (RuntimeError, HTTPError) as e:
-                self.__handler.complain_network(channel, e)
-            except Exception as e:
-                self.__handler.complain(channel, e)
+            errors = 0
+            while errors < 3:
+                try:
+                    web_info = web.web_res_info(url)
+                    if web_info['type'] == "text/html":
+                        self.say_webpage_title(channel, web_info)
+                    else:
+                        self.say_resource_info(channel, web_info)
+                    break
+                except (RuntimeError, HTTPError) as e:
+                    self.__handler.complain_network(channel, e)
+                    errors += 1
+                except Exception as e:
+                    self.__handler.complain(channel, e)
+                    break
 
     def say_webpage_title(self, channel, web_info):
         if web_info['title']:
