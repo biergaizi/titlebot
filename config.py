@@ -14,3 +14,8 @@ HEADERS = [("Accept-Charset", "utf-8, iso-8859-1"),
            ("X-moz", "prefetch"),
            ("X-Prefetch", "yes"),
            ("X-Requested-With", "Titlebot")]
+
+IGNORED_URLS = ["https://app.gumble.tk/img/",
+                "https?:/*git.io(/|$)",
+                "http://weibo.com/[0-9]+/[a-zA-Z0-9]{9}"]
+
