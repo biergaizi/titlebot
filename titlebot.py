@@ -2,13 +2,15 @@ import socket
 socket.setdefaulttimeout(4)
 
 from queue import Queue
+import re
 import web
 from urllib.error import HTTPError
 from hack import async, restart_program, Signal
 import libirc
 from time import sleep
 from config import (HOST, PORT, NICK, IDENT,
-                    REALNAME, CHANNELS, ADMINS)
+                    REALNAME, CHANNELS, ADMINS,
+                    IGNORED_URLS)
 
 
 class IRCHandler(object):
@@ -107,6 +109,10 @@ class MessageHandler(object):
         url = web.pickup_url(text)
         if not url:
             return
+
+        for badurl in IGNORED_URLS:
+            if re.match(badurl, url):
+                return
 
         errors = 0
         while True:
