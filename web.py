@@ -140,8 +140,8 @@ def web_res_info(word):
         if h.info().get("Content-Encoding") == "gzip":  # Fix buggy www.bilibili.tv
             contents = decompressContents(contents)
 
-        if contents.find("<title>") != -1:
-            encodedTitle = contents.split("<title>")[1].split("</title>")[0]
+        if contents.find(b"<title>") != -1:
+            encodedTitle = contents.split(b"<title>")[1].split(b"</title>")[0]
             webInfo['title'] = encodedTitle
         else:
             webInfo['title'] = ""
