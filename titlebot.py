@@ -143,7 +143,11 @@ class MessageHandler(object):
             self.__handler.say(channel, "⇪标题: (空)")
 
     def say_resource_info(self, channel, web_info):
-        if web_info['size']:
+        if web_info['title']:
+            assert web_info['size']
+            assert web_info['type']
+            self.__handler.say(channel, "⇪标题: %s, 文件类型: %s, 文件大小: %s 字节\r\n" % (web_info["title"], web_info['type'], web_info['size']))
+        elif web_info['size']:
             assert web_info['type']
             self.__handler.say(channel, "⇪文件类型: %s, 文件大小: %s 字节\r\n" % (web_info['type'], web_info['size']))
         elif web_info['type']:
