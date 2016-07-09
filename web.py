@@ -133,7 +133,7 @@ def lookup_magnet(magnet):
 
     try:
         div = page.find_all("div", "files")[0]
-        size = div.div.text.replace(",", "").replace("b", "")
+        size = div.div["title"].replace(",", "").replace("b", "")
     except Exception:
         size = ""
 
