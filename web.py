@@ -9,6 +9,7 @@ import zlib
 import io
 from config import HEADERS
 import time
+import sys
 
 
 def pickup_url(text):
@@ -22,6 +23,101 @@ def pickup_url(text):
     return None
 
 
+def openConnection(word):
+    cookieJar = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler,
+                                         urllib.request.HTTPCookieProcessor(cookieJar))
+    opener.addheaders = HEADERS
+
+    if "i2p.xzy" in word:
+        timeout = 60
+    else:
+        timeout = 10
+    h = opener.open(word, timeout=timeout)
+
+    if h.code not in [200, 206]:
+        raise urllib.error.HTTPError(code=h.code)
+    return h
+
+
+def readContents(h, timeout=3):
+    """Read a little part of the contents"""
+    contents = b""
+    counter = 1
+    MAX = 8192
+    MAX_LENGTH = 16384
+
+    start_time = time.time()
+
+    while len(contents) < MAX_LENGTH and counter < MAX:
+        if time.time() - start_time > timeout:
+            raise RuntimeError("Request timeout.")
+
+        following_contents = h.read(16)
+
+        # Hack: read more when we saw a script
+        if b"<script" in following_contents:
+            MAX += 1
+            MAX_LENGTH += 16384
+
+        if following_contents:
+            contents += following_contents
+        else:
+            break
+        counter += 1
+    return contents
+
+
+def decompressContents(compressed_contents, block_size=128, max_length=1024000):
+    """Decompress gzipped contents, ignore the error"""
+
+    gzipped_stream = io.BytesIO(compressed_contents)
+
+    decompressed_contents = b""
+    decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
+
+    while len(decompressed_contents) < max_length:
+        block = gzipped_stream.read(block_size)
+        if not block:
+            break
+        seek = decompressor.unconsumed_tail + block
+        decompressed_block = decompressor.decompress(seek)
+        decompressed_contents += decompressed_block
+    else:
+        raise RuntimeError("Too large gzipped content.")
+
+    gzipped_stream.close()
+
+    return decompressed_contents
+
+
+def lookup_magnet(magnet):
+    import json
+
+    bthash_b16 = re.findall(u'(?:\\?|&|&amp;)xt=urn:btih:([0-9A-Fa-f]{40})', magnet)
+    bthash_b32 = re.findall(u'(?:\\?|&|&amp;)xt=urn:btih:([2-7A-Za-z]{32})', magnet)
+    if bthash_b16 and bthash_b32:
+        sys.stderr.write("Assertion error, both bthash!", magnet, "\n")
+
+    if bthash_b16:
+        querystring = bthash_b16[0].encode('utf-8', 'replace')
+    elif bthash_b32:
+        querystring = base64.b16encode(base64.b32decode(bthash_b32[0]))
+    else:
+        # no bt, do not touch url
+        return
+
+    raw_info = readContents(openConnection("https://torrentproject.se/?s=%s&out=json" % querystring))
+    info = json.loads(raw_info.decode("UTF-8"))
+    if info["total_found"] == "0":
+        raise RuntimeError("404 Torrent Not Found, maybe DMCA?")
+
+    title = info["1"]["title"]
+    cat = info["1"]["category"]
+    size = info["1"]["torrent_size"]
+    return title, cat, size
+
+
 def web_res_info(word):
     webInfo = {
         "type": "",
@@ -33,39 +129,7 @@ def web_res_info(word):
         i2p = re.sub('http:/*([^/]+)\\.i2p(/|$)', 'http://\\1.i2p.xyz\\2', word)
         if (i2p != word):
             return i2p
-
-        bthash_b16 = re.findall(u'(?:\\?|&|&amp;)xt=urn:btih:([0-9A-Fa-f]{40})', word)
-        bthash_b32 = re.findall(u'(?:\\?|&|&amp;)xt=urn:btih:([2-7A-Za-z]{32})', word)
-        if bthash_b16 and bthash_b32:
-            print("Assertion Error, both bthash!")
-            print(word)
-
-        if bthash_b16:
-            querystring = bthash_b16[0].encode('utf-8', 'replace')
-        elif bthash_b32:
-            querystring = base64.b16encode(base64.b32decode(bthash_b32[0]))
-        else:
-            # no bt, do not touch url
-            return url
-
-        return 'https://btdigg.org/search?info_hash=%s' % querystring
-
-
-    def openConnection(word):
-        cookieJar = http.cookiejar.CookieJar()
-        opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler,
-                                             urllib.request.HTTPCookieProcessor(cookieJar))
-        opener.addheaders = HEADERS
-
-        if "i2p.xzy" in word:
-            timeout = 60
-        else:
-            timeout = 10
-        h = opener.open(word, timeout=timeout)
-
-        if h.code not in [200, 206]:
-            raise urllib.error.HTTPError(code=h.code)
-        return h
+        return url
 
     def htmlDecode(encodedText):
         decodedText = ""
@@ -81,54 +145,9 @@ def web_res_info(word):
         decodedText = html_parser().unescape(decodedText).replace("\r", "").replace("\n", " ").strip()
         return decodedText
 
-    def readContents(h, timeout=3):
-        """Read a little part of the contents"""
-        contents = b""
-        counter = 1
-        MAX = 8192
-        MAX_LENGTH = 16384
-
-        start_time = time.time()
-
-        while len(contents) < MAX_LENGTH and counter < MAX:
-            if time.time() - start_time > timeout:
-                raise RuntimeError("Request timeout.")
-
-            following_contents = h.read(16)
-
-            # Hack: read more when we saw a script
-            if b"<script" in following_contents:
-                MAX += 1
-                MAX_LENGTH += 16384
-
-            if following_contents:
-                contents += following_contents
-            else:
-                break
-            counter += 1
-        return contents
-
-    def decompressContents(compressed_contents, block_size=128, max_length=1024000):
-        """Decompress gzipped contents, ignore the error"""
-
-        gzipped_stream = io.BytesIO(compressed_contents)
-
-        decompressed_contents = b""
-        decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
-
-        while len(decompressed_contents) < max_length:
-            block = gzipped_stream.read(block_size)
-            if not block:
-                break
-            seek = decompressor.unconsumed_tail + block
-            decompressed_block = decompressor.decompress(seek)
-            decompressed_contents += decompressed_block
-        else:
-            raise RuntimeError("Too large gzipped content.")
-
-        gzipped_stream.close()
-
-        return decompressed_contents
+    if word.startswith("magnet:"):
+        webInfo["title"], webInfo["type"], webInfo["size"] = lookup_magnet(word)
+        return webInfo
 
     word = transformSpecialResource(word)
     h = openConnection(word)
