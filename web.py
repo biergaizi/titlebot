@@ -101,7 +101,7 @@ def lookup_magnet(magnet):
         sys.stderr.write("Assertion error, both bthash!", magnet, "\n")
 
     if bthash_b16:
-        querystring = bthash_b16[0].encode('utf-8', 'replace')
+        querystring = bthash_b16[0]
     elif bthash_b32:
         querystring = base64.b16encode(base64.b32decode(bthash_b32[0]))
     else:
