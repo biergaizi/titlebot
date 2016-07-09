@@ -34,7 +34,7 @@ def openConnection(word):
         timeout = 60
     else:
         timeout = 10
-    h = opener.open(word, timeout=timeout)
+    h = opener.open(urllib.parse.quote(word), timeout=timeout)
 
     if h.code not in [200, 206]:
         raise urllib.error.HTTPError(code=h.code)
