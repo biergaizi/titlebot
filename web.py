@@ -94,6 +94,7 @@ def decompressContents(compressed_contents, block_size=128, max_length=1024000):
 
 def lookup_magnet(magnet):
     import json
+    import bs4
 
     bthash_b16 = re.findall(u'(?:\\?|&|&amp;)xt=urn:btih:([0-9A-Fa-f]{40})', magnet)
     bthash_b32 = re.findall(u'(?:\\?|&|&amp;)xt=urn:btih:([2-7A-Za-z]{32})', magnet)
@@ -110,12 +111,32 @@ def lookup_magnet(magnet):
 
     raw_info = readContents(openConnection("https://torrentproject.se/?s=%s&out=json" % querystring))
     info = json.loads(raw_info.decode("UTF-8"))
-    if info["total_found"] == "0":
+
+    if info["total_found"] != "0":
+        title = info["1"]["title"]
+        cat = info["1"]["category"]
+        size = info["1"]["torrent_size"]
+        return title, cat, size
+
+    # oh, gonna try plan b
+    raw_info = readContents(openConnection("https://torrentz.eu/%s" % querystring))
+    page = bs4.BeautifulSoup(raw_info, "html.parser")
+
+    try:
+        div = page.find_all("div", "download", recursive=True)[0]
+        firstmatch = div.find_all(rel="e")[0]
+
+        title = firstmatch.find_all("span")[1].text
+        cat = firstmatch.text.split(title)[-1].split()[0]
+    except:
         raise RuntimeError("404 Torrent Not Found, maybe DMCA?")
 
-    title = info["1"]["title"]
-    cat = info["1"]["category"]
-    size = info["1"]["torrent_size"]
+    try:
+        div = page.find_all("div", "files")[0]
+        size = div.div.text.replace(",", "").replace("b", "")
+    except Exception:
+        size = ""
+
     return title, cat, size
 
 
