@@ -10,6 +10,7 @@ import io
 from config import HEADERS
 import time
 import sys
+import bs4
 
 
 def pickup_url(text):
@@ -159,12 +160,11 @@ def web_res_info(word):
         if h.info().get("Content-Encoding") == "gzip":  # Fix buggy www.bilibili.tv
             contents = decompressContents(contents)
 
-        if contents.find(b"<title>") != -1:
-            encodedTitle = contents.split(b"<title>")[1].split(b"</title>")[0]
-            webInfo['title'] = encodedTitle
-        else:
-            webInfo['title'] = ""
-        webInfo['title'] = htmlDecode(webInfo['title'])
+        # Other parsers are really naive,
+        # they can't even distinguish between comments and code.
+        soup = bs4.BeautifulSoup(contents, "html5lib")
+        if soup.title:
+            webInfo["title"] = soup.title.string
     else:
         webInfo["type"] = h.info()["Content-Type"]
         if "Content-Range" in h.info():
