@@ -176,7 +176,7 @@ def web_res_info(word):
     word = transformSpecialResource(word)
     h = openConnection(word)
 
-    if h.info()["Content-Type"].split(";")[0] == "text/html" or (not "Content-Type" in h.info()):
+    if "Content-Type" not in h.info() or h.info()["Content-Type"].split(";")[0] == "text/html":
         webInfo["type"] = "text/html"
         contents = readContents(h)
 
