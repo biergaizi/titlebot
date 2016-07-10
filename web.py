@@ -35,7 +35,7 @@ def openConnection(word, encoding=True):
     else:
         timeout = 10
     if encoding:
-        word = urllib.parse.quote(word, safe=":/")
+        word = urllib.parse.quote(word, safe=":/=?")
     h = opener.open(word, timeout=timeout)
 
     if h.code not in [200, 206]:
