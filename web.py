@@ -26,14 +26,22 @@ def pickup_url(text):
 
 def openConnection(word, encoding=True):
     cookieJar = http.cookiejar.CookieJar()
-    opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler,
-                                         urllib.request.HTTPCookieProcessor(cookieJar))
-    opener.addheaders = HEADERS
 
-    if "i2p.xzy" in word:
+    if re.match("http:/*([^/]+)\\.i2p(/|$)", word):
+        from config import I2P_USER, I2P_PASSWORD
         timeout = 60
+        authinfo = urllib.request.HTTPBasicAuthHandler()
+        authinfo.add_password(user=I2P_USER, passwd=I2P_PASSWORD)
+        proxy_support = urllib.request.ProxyHandler({"http" : "http://127.0.0.1:4444"})
+        opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler,
+                                             urllib.request.HTTPCookieProcessor(cookieJar),
+                                             )
     else:
         timeout = 10
+        opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler,
+                                             urllib.request.HTTPCookieProcessor(cookieJar),
+                                             proxy_support, authinfo)
+    opener.addheaders = HEADERS
     if encoding:
         word = urllib.parse.quote(word, safe=":/=?")
     h = opener.open(word, timeout=timeout)
@@ -149,12 +157,6 @@ def web_res_info(word):
         "size": ""
     }
 
-    def transformSpecialResource(url):
-        i2p = re.sub('http:/*([^/]+)\\.i2p(/|$)', 'http://\\1.i2p.xyz\\2', word)
-        if (i2p != word):
-            return i2p
-        return url
-
     def htmlDecode(encodedText):
         decodedText = ""
         for encoding in ("utf-8", "gbk", "gb18030", "iso-8859-1"):
@@ -173,7 +175,6 @@ def web_res_info(word):
         webInfo["title"], webInfo["type"], webInfo["size"] = lookup_magnet(word)
         return webInfo
 
-    word = transformSpecialResource(word)
     h = openConnection(word)
 
     if "Content-Type" not in h.info() or h.info()["Content-Type"].split(";")[0] == "text/html":
