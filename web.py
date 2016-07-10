@@ -11,6 +11,7 @@ from config import HEADERS
 import time
 import sys
 import bs4
+import copy
 
 
 def pickup_url(text):
@@ -31,17 +32,25 @@ def openConnection(word, encoding=True):
         from config import I2P_USER, I2P_PASSWORD
         timeout = 60
         authinfo = urllib.request.HTTPBasicAuthHandler()
-        authinfo.add_password(user=I2P_USER, passwd=I2P_PASSWORD)
+        authinfo.add_password(realm=None, uri=word, user=I2P_USER, passwd=I2P_PASSWORD)
         proxy_support = urllib.request.ProxyHandler({"http" : "http://127.0.0.1:4444"})
         opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler,
                                              urllib.request.HTTPCookieProcessor(cookieJar),
-                                             )
+                                             proxy_support, authinfo)
+        headers = copy.deepcopy(HEADERS)
+        remove = -1
+
+        for idx, item in enumerate(headers):
+            if item[0] == "X-Forwarded-For":
+                remove = idx
+        if remove > 0:
+            del headers[remove]
+        opener.addheaders = headers
     else:
         timeout = 10
         opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler,
-                                             urllib.request.HTTPCookieProcessor(cookieJar),
-                                             proxy_support, authinfo)
-    opener.addheaders = HEADERS
+                                             urllib.request.HTTPCookieProcessor(cookieJar))
+        opener.addheaders = HEADERS
     if encoding:
         word = urllib.parse.quote(word, safe=":/=?")
     h = opener.open(word, timeout=timeout)
