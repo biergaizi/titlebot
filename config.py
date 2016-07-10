@@ -19,3 +19,5 @@ IGNORED_URLS = ["https://app.gumble.tk/img/",
                 "https?:/*git.io(/|$)",
                 "http://weibo.com/[0-9]+/[a-zA-Z0-9]{9}"]
 
+I2P_USER = ""
+I2P_PASSWORD = ""
