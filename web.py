@@ -24,7 +24,7 @@ def pickup_url(text):
     return None
 
 
-def openConnection(word):
+def openConnection(word, encoding=True):
     cookieJar = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler,
                                          urllib.request.HTTPCookieProcessor(cookieJar))
@@ -34,7 +34,9 @@ def openConnection(word):
         timeout = 60
     else:
         timeout = 10
-    h = opener.open(urllib.parse.quote(word, safe=":/"), timeout=timeout)
+    if encoding:
+        word = urllib.parse.quote(word, safe=":/")
+    h = opener.open(word, timeout=timeout)
 
     if h.code not in [200, 206]:
         raise urllib.error.HTTPError(code=h.code)
@@ -109,7 +111,7 @@ def lookup_magnet(magnet):
         # no bt, do not touch url
         return
 
-    raw_info = readContents(openConnection("https://torrentproject.se/?s=%s&out=json" % querystring))
+    raw_info = readContents(openConnection("https://torrentproject.se/?s=%s&out=json" % querystring, encoding=False))
     info = json.loads(raw_info.decode("UTF-8"))
 
     if info["total_found"] != "0":
@@ -119,7 +121,7 @@ def lookup_magnet(magnet):
         return title, cat, size
 
     # oh, gonna try plan b
-    raw_info = readContents(openConnection("https://torrentz.eu/%s" % querystring))
+    raw_info = readContents(openConnection("https://torrentz.eu/%s" % querystring, encoding=False))
     page = bs4.BeautifulSoup(raw_info, "html.parser")
 
     try:
