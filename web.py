@@ -198,6 +198,7 @@ def web_res_info(word):
         soup = bs4.BeautifulSoup(contents, "html5lib")
         if soup.title:
             webInfo["title"] = soup.title.string
+        title = title.replace("\n", " ")
     else:
         webInfo["type"] = h.info()["Content-Type"]
         if "Content-Range" in h.info():
