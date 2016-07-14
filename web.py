@@ -197,8 +197,7 @@ def web_res_info(word):
         # they can't even distinguish between comments and code.
         soup = bs4.BeautifulSoup(contents, "html5lib")
         if soup.title:
-            webInfo["title"] = soup.title.string
-        title = title.replace("\n", " ")
+            webInfo["title"] = soup.title.string.replace("\n", " ")
     else:
         webInfo["type"] = h.info()["Content-Type"]
         if "Content-Range" in h.info():
