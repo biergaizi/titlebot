@@ -159,6 +159,16 @@ def lookup_magnet(magnet):
     return title, cat, size
 
 
+def remove_tailing_space(string):
+    if "\n" not in string:
+        return string
+
+    tmp = string.split("\n")
+    for idx, str in enumerate(tmp):
+        tmp[idx] = str.strip()
+    return " ".join(tmp).strip()
+
+
 def web_res_info(word):
     webInfo = {
         "type": "",
@@ -197,7 +207,7 @@ def web_res_info(word):
         # they can't even distinguish between comments and code.
         soup = bs4.BeautifulSoup(contents, "html5lib")
         if soup.title:
-            webInfo["title"] = soup.title.string.replace("\n", " ")
+            webInfo["title"] = remove_tailing_space(soup.title.string)
     else:
         webInfo["type"] = h.info()["Content-Type"]
         if "Content-Range" in h.info():
