@@ -1,17 +1,11 @@
 import re
 import base64
-import urllib.request
-import urllib.error
-import urllib.parse
-import http.cookiejar
+import requests
 from html.parser import HTMLParser as html_parser
-import zlib
-import io
 from config import HEADERS
 import time
 import sys
 import bs4
-import copy
 
 
 def pickup_url(text):
@@ -25,39 +19,22 @@ def pickup_url(text):
     return None
 
 
-def openConnection(word, encoding=True):
-    cookieJar = http.cookiejar.CookieJar()
+def openConnection(word):
+    s = requests.Session()
+    h = {}
+    for item in HEADERS:
+        h[item[0]] = item[1]
 
     if re.match("http:/*([^/]+)\\.i2p(/|$)", word):
         from config import I2P_USER, I2P_PASSWORD
         timeout = 60
-        authinfo = urllib.request.HTTPBasicAuthHandler()
-        authinfo.add_password(realm=None, uri=word, user=I2P_USER, passwd=I2P_PASSWORD)
-        proxy_support = urllib.request.ProxyHandler({"http" : "http://127.0.0.1:4444"})
-        opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler,
-                                             urllib.request.HTTPCookieProcessor(cookieJar),
-                                             proxy_support, authinfo)
-        headers = copy.deepcopy(HEADERS)
-        remove = -1
-
-        for idx, item in enumerate(headers):
-            if item[0] == "X-Forwarded-For":
-                remove = idx
-        if remove > 0:
-            del headers[remove]
-        opener.addheaders = headers
+        h.pop("X-Forwarded-For")
+        s.auth = (I2P_USER, I2P_PASSWORD)
+        s.proxies = {"http": "http://127.0.0.1:4444"}
     else:
         timeout = 10
-        opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler,
-                                             urllib.request.HTTPCookieProcessor(cookieJar))
-        opener.addheaders = HEADERS
-    if encoding:
-        word = urllib.parse.quote(word, safe=":/=?%#")
-    h = opener.open(word, timeout=timeout)
 
-    if h.code not in [200, 206]:
-        raise urllib.error.HTTPError(code=h.code)
-    return h
+    return s.get(word, headers=h, timeout=timeout, stream=True)
 
 
 def readContents(h, timeout=3):
@@ -66,6 +43,7 @@ def readContents(h, timeout=3):
     counter = 1
     MAX = 8192
     MAX_LENGTH = 16384
+    r = h.iter_content(decode_unicode=False)
 
     start_time = time.time()
 
@@ -73,7 +51,11 @@ def readContents(h, timeout=3):
         if time.time() - start_time > timeout:
             raise RuntimeError("Request timeout.")
 
-        following_contents = h.read(16)
+        following_contents = b""
+        try:
+            following_contents += next(r)
+        except (StopIteration, Exception):
+            break
 
         # Hack: read more when we saw a script
         if b"<script" in following_contents:
@@ -85,30 +67,9 @@ def readContents(h, timeout=3):
         else:
             break
         counter += 1
+
+    h.close()
     return contents
-
-
-def decompressContents(compressed_contents, block_size=128, max_length=1024000):
-    """Decompress gzipped contents, ignore the error"""
-
-    gzipped_stream = io.BytesIO(compressed_contents)
-
-    decompressed_contents = b""
-    decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
-
-    while len(decompressed_contents) < max_length:
-        block = gzipped_stream.read(block_size)
-        if not block:
-            break
-        seek = decompressor.unconsumed_tail + block
-        decompressed_block = decompressor.decompress(seek)
-        decompressed_contents += decompressed_block
-    else:
-        raise RuntimeError("Too large gzipped content.")
-
-    gzipped_stream.close()
-
-    return decompressed_contents
 
 
 def lookup_magnet(magnet):
@@ -128,7 +89,7 @@ def lookup_magnet(magnet):
         # no bt, do not touch url
         return
 
-    raw_info = readContents(openConnection("https://torrentproject.se/?s=%s&out=json" % querystring, encoding=False))
+    raw_info = readContents(openConnection("https://torrentproject.se/?s=%s&out=json" % querystring))
     info = json.loads(raw_info.decode("UTF-8"))
 
     if info["total_found"] != "0":
@@ -138,7 +99,7 @@ def lookup_magnet(magnet):
         return title, cat, size
 
     # oh, gonna try plan b
-    raw_info = readContents(openConnection("https://torrentz.eu/%s" % querystring, encoding=False))
+    raw_info = readContents(openConnection("https://torrentz.eu/%s" % querystring))
     page = bs4.BeautifulSoup(raw_info, "html.parser")
 
     try:
@@ -180,7 +141,7 @@ def web_res_info(word):
         decodedText = ""
         for encoding in ("utf-8", "gbk", "gb18030", "iso-8859-1"):
             try:
-                decodedText = encodedText.decode(encoding)
+                decodedText = encodedText.decode(encoding, errors='replace')
                 break
             except UnicodeDecodeError:
                 pass
@@ -196,12 +157,9 @@ def web_res_info(word):
 
     h = openConnection(word)
 
-    if "Content-Type" not in h.info() or h.info()["Content-Type"].split(";")[0] == "text/html":
+    if "Content-Type" not in h.headers or h.headers["Content-Type"].split(";")[0] == "text/html":
         webInfo["type"] = "text/html"
         contents = readContents(h)
-
-        if h.info().get("Content-Encoding") == "gzip":  # Fix buggy www.bilibili.tv
-            contents = decompressContents(contents)
 
         # Other parsers are really naive,
         # they can't even distinguish between comments and code.
