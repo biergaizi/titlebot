@@ -168,10 +168,10 @@ def web_res_info(word):
         if soup.title:
             webInfo["title"] = remove_tailing_space(soup.title.string)
     else:
-        webInfo["type"] = h.info()["Content-Type"]
-        if "Content-Range" in h.info():
-            webInfo["size"] = h.info()["Content-Range"].split("/")[1]
-        elif "Content-Length" in h.info():
-            webInfo["size"] = h.info()["Content-Length"]
+        webInfo["type"] = h.headers["Content-Type"]
+        if "Content-Range" in h.headers():
+            webInfo["size"] = h.headers()["Content-Range"].split("/")[1]
+        elif "Content-Length" in h.headers():
+            webInfo["size"] = h.headers()["Content-Length"]
 
     return webInfo
