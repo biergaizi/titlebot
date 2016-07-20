@@ -34,7 +34,7 @@ def openConnection(word):
     else:
         timeout = 10
 
-    return s.get(word, headers=h, timeout=timeout, stream=True)
+    return s.get(word, headers=h, timeout=timeout, stream=True, verify=True)
 
 
 def readContents(h, timeout=3):
