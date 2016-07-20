@@ -34,7 +34,10 @@ def openConnection(word):
     else:
         timeout = 10
 
-    return s.get(word, headers=h, timeout=timeout, stream=True, verify=True)
+    try:
+        return s.get(word, headers=h, timeout=timeout, stream=True, verify=True)
+    except Exception as e:
+        raise RuntimeError(type(e).__name__)
 
 
 def readContents(h, timeout=3):
