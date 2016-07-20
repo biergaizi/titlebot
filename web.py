@@ -64,8 +64,6 @@ def readContents(h, timeout=3):
 
         if following_contents:
             contents += following_contents
-        else:
-            break
         counter += 1
 
     h.close()
