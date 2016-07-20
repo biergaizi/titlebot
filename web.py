@@ -33,7 +33,6 @@ def openConnection(word):
         s.proxies = {"http": "http://127.0.0.1:4444"}
     elif re.match("^https?:/*([^/]+)\\.onion(/|$)", word):
         word = re.sub('^https?:/*([^/]+)\\.onion(/|$)', 'https://\\1.onion.to\\2', word)
-        print(word)
         timeout = 60
     else:
         timeout = 10
