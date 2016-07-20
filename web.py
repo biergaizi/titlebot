@@ -31,6 +31,10 @@ def openConnection(word):
         h.pop("X-Forwarded-For")
         s.auth = (I2P_USER, I2P_PASSWORD)
         s.proxies = {"http": "http://127.0.0.1:4444"}
+    elif re.match("^https?:/*([^/]+)\\.onion(/|$)", word):
+        word = re.sub('^https?:/*([^/]+)\\.onion(/|$)', 'https://\\1.onion.to\\2', word)
+        print(word)
+        timeout = 60
     else:
         timeout = 10
 
