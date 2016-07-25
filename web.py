@@ -122,6 +122,10 @@ def lookup_magnet(magnet):
 
 
 def remove_tailing_space(string):
+    if not string:
+        # in bs4, "<title></title>".string is not empty string but None...
+        return ""
+
     if "\n" not in string:
         return string
 
@@ -166,6 +170,7 @@ def web_res_info(word):
         # they can't even distinguish between comments and code.
         soup = bs4.BeautifulSoup(contents, "html5lib")
         if soup.title:
+            # in bs4, "<title></title>".string is not empty string but None...
             webInfo["title"] = remove_tailing_space(soup.title.string)
     else:
         webInfo["type"] = h.headers["Content-Type"]
