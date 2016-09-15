@@ -38,6 +38,7 @@ class IRCHandler(object):
                 self.__mainloop()
             except socket.error as e:
                 self.quit("Network error")
+                restart_program()
             except Exception as e:
                 self.complain(self.__last_messag['dest'], e)
 
