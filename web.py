@@ -15,7 +15,7 @@ def pickup_url(text):
     for protocol in PROTOCOLS:
         index = text.find(protocol)
         if index == -1:
-            return None
+            continue
         raw_text = text[index:]
         if "」" in raw_text:
             # hack for bot-forwarding
