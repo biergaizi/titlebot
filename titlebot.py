@@ -40,7 +40,7 @@ class IRCHandler(object):
                 self.quit("Network error")
                 restart_program()
             except Exception as e:
-                self.complain(self.__last_messag['dest'], e)
+                self.complain(self.__last_message['dest'], e)
 
     def say(self, nick, text):
         self.__message_pool.put([nick, text])
