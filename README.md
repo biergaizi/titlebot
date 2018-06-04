@@ -1,5 +1,8 @@
-titlebot
+#DeleteGithub
 ========
+**Deleted!** This project is moved to [notabug.org](https://notabug.org/niconiconi/titlebot), welcome to join the free world!
+
+titlebot
 
 An IRC robot that parses URLs and post the title of that webpage
 
